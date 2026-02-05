@@ -1,0 +1,5 @@
+GET1TB0T/
+│
+├─ bot.py             # Main Python bot file
+├─ requirements.txt   # Python dependencies
+└─ README.md          # Optional, just info
