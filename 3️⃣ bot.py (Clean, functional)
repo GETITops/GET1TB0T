@@ -1,5 +1,40 @@
-import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+"""Agent 008: verification and audit integrity.
 
-BOT_TOKEN = os.getenv("8014125974:AAEIwFW166NS9mfiWxPHBEdMh-I5XbucHys")
+This module validates file contents for common credential exposure and structural issues.
+It performs dry-run validation only and does not mutate external infrastructure.
+"""
+
+import re
+from typing import List, Tuple
+
+
+class AuditValidator:
+    def __init__(self):
+        self.patterns = [
+            r"(?i)(token|secret|password|api[_-]?key)\s*=\s*['\"][^'\"]+['\"]",
+            r"\d{8,10}:[A-Za-z0-9_-]{30,}",
+        ]
+
+    def check_for_exposed_credentials(self, content: str, filename: str = "") -> Tuple[bool, List[str]]:
+        findings: List[str] = []
+        for pattern in self.patterns:
+            matches = re.findall(pattern, content)
+            if matches:
+                findings.append(f"Credential-like pattern detected in {filename or 'content'}")
+        return not findings, findings
+
+    def validate_python_syntax(self, content: str, filename: str = "snippet.py") -> Tuple[bool, List[str]]:
+        findings: List[str] = []
+        try:
+            compile(content, filename, "exec")
+        except SyntaxError as exc:
+            findings.append(f"SyntaxError in {filename}: {exc.msg} (line {exc.lineno})")
+        return not findings, findings
+
+
+def audit_content(content: str, filename: str = "snippet.py") -> Tuple[bool, List[str]]:
+    validator = AuditValidator()
+    credential_ok, credential_findings = validator.check_for_exposed_credentials(content, filename)
+    syntax_ok, syntax_findings = validator.validate_python_syntax(content, filename)
+    findings = credential_findings + syntax_findings
+    return credential_ok and syntax_ok, findings
